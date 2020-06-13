@@ -68,6 +68,17 @@ Avoid executing commands, instead show what would be executed.
 Warning: please notice that the ISO has to be mounted anyway, otherwise
 identifying the Grml flavour would not be possible.
 
+  *\--esp-dir=...*::
+
+Install EFI boot files into specified subdirectory of EFI/ on EFI System
+Partition. By default grml2usb installs grub into EFI/boot/bootx64.efi which EFI
+BIOS picks as fallback bootloader. But apparently without NVRAM adjustments some
+BIOSes picks it as only bootloader on removable drives. You may want to use
+different fallback bootloader such as some EFI boot manager (e.g. rEFInd) to
+boot other things from the USB drive (e.g. EFI shell from TanoCore's EDK2) in
+addition to Grml. In that case use this option to create different directory
+under EFI/, otherwise grml2usb will overwrite your fallback bootloader.
+
   *\--fat16*::
 
 Format specified partition with FAT16.

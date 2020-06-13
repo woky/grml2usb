@@ -29,7 +29,7 @@ import tempfile
 import time
 import uuid
 from inspect import isclass, isroutine
-from optparse import OptionParser
+from optparse import OptionParser, OptionError
 
 # The line following this line is patched by debian/rules and tarball.sh.
 PROG_VERSION = "***UNKNOWN***"
@@ -89,6 +89,16 @@ def grub_option(option, opt, value, opt_parser):
     # pylint: disable-msg=W0613
     setattr(opt_parser.values, option.dest, True)
     setattr(opt_parser.values, "syslinux", False)
+
+
+def espdir_option(option, opt, value, opt_parser):
+    """A helper function validating ESP directory name
+    """
+    if not value:
+        raise OptionError("ESP directory name is empty")
+    if '/' in value:
+        raise OptionError("ESP directory name contains slashes")
+    setattr(opt_parser.values, option.dest, value)
 
 
 # cmdline parsing
@@ -155,6 +165,15 @@ parser.add_option(
     dest="mbrmenu",
     action="store_true",
     help="enable interactive boot menu in MBR",
+)
+parser.add_option(
+    "--esp-dir",
+    dest="espdir",
+    action="callback",
+    callback=espdir_option,
+    type="string",
+    default="boot",
+    help="name of directory under EFI/ on EFI System Partition",
 )
 parser.add_option(
     "--quiet",
@@ -1305,8 +1324,8 @@ def copy_bootloader_files(iso_mount, target, grml_flavour):
 
     bootx64_efi = search_file("bootx64.efi", iso_mount)
     if bootx64_efi:
-        mkdir(target + "/efi/boot/")
-        exec_rsync(bootx64_efi, target + "/efi/boot/bootx64.efi")
+        mkdir(target + "/efi/" + options.espdir)
+        exec_rsync(bootx64_efi, target + "/efi/" + options.espdir + "/bootx64.efi")
 
     efi_img = search_file("efi.img", iso_mount)
     if efi_img:
@@ -1744,7 +1763,7 @@ def handle_secure_boot(target, efi_img):
     @efi_img: path to the efi.img file that includes the files for secure boot
     """
 
-    mkdir(target + "/efi/boot/")
+    mkdir(target + "/efi/" + options.espdir)
     efi_mountpoint = tempfile.mkdtemp(
         prefix="grml2usb", dir=os.path.abspath(options.tmpdir)
     )
@@ -1774,20 +1793,20 @@ def handle_secure_boot(target, efi_img):
         exec_rsync(ubuntu_cfg, target + "/efi/ubuntu/grub.cfg")
 
         logging.debug(
-            "exec_rsync(%s + '/EFI/BOOT/grubx64.efi', %s + '/efi/boot/grubx64.efi')'"
+            "exec_rsync(%s + '/EFI/BOOT/grubx64.efi', %s + '/efi/" + options.espdir + "/grubx64.efi')'"
             % (efi_mountpoint, target)
         )
         exec_rsync(
-            efi_mountpoint + "/EFI/BOOT/grubx64.efi", target + "/efi/boot/grubx64.efi"
+            efi_mountpoint + "/EFI/BOOT/grubx64.efi", target + "/efi/" + options.espdir + "/grubx64.efi"
         )
 
         # NOTE - we're overwriting /efi/boot/bootx64.efi from copy_bootloader_files here
         logging.debug(
-            "exec_rsync(%s + '/EFI/BOOT/bootx64.efi', %s + '/efi/boot/bootx64.efi')'"
+            "exec_rsync(%s + '/EFI/BOOT/bootx64.efi', %s + '/efi/" + options.espdir + "/bootx64.efi')'"
             % (efi_mountpoint, target)
         )
         exec_rsync(
-            efi_mountpoint + "/EFI/BOOT/bootx64.efi", target + "/efi/boot/bootx64.efi"
+            efi_mountpoint + "/EFI/BOOT/bootx64.efi", target + "/efi/" + options.espdir + "/bootx64.efi"
         )
 
     try:
